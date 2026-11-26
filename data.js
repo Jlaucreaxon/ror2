@@ -176,3 +176,48 @@ const PromotionRecipes = [
 { rankReq: 'C', lv: 10, item: 'AWP狙擊槍', to: '狙擊狂' },
 { rankReq: 'C', lv: 10, item: '劊子手大刀', to: '劊子手' }
 ];
+window.togglePromoTree = function(show) {
+  const modal = document.getElementById('tree-modal');
+  if (!modal) return;
+  if (!show) {
+    modal.style.display = 'none';
+    return;
+  }
+
+  const content = document.getElementById('tree-content');
+  content.innerHTML = '';
+  const bag = (typeof RunState !== 'undefined' && RunState.bagItems) ? RunState.bagItems : [];
+
+  // 依照起點職業分組整理路線
+  const groups = {};
+  PromotionRecipes.forEach(r => {
+    const key = r.from ? ('起點：【' + r.from + '】') : ('通用條件：任意 ' + r.rankReq + ' 級職業');
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(r);
+  });
+
+  Object.keys(groups).forEach(groupTitle => {
+    const box = document.createElement('div');
+    box.className = 'tree-group';
+
+    const title = document.createElement('div');
+    title.className = 'tree-title';
+    title.textContent = groupTitle;
+    box.appendChild(title);
+
+    groups[groupTitle].forEach(r => {
+      const targetRank = (JobDB[r.to] && JobDB[r.to].rank) ? JobDB[r.to].rank : '?';
+      const owned = r.item && bag.includes(r.item);
+      const reqStr = 'Lv.' + r.lv + (r.item ? ' + 【' + r.item + '】' : ' (無需道具)');
+
+      const row = document.createElement('div');
+      row.className = 'tree-row' + (owned ? ' has-item' : '');
+      row.innerHTML = '<span>' + reqStr + '</span><span>➔ [' + targetRank + '] <b>' + r.to + '</b></span>';
+      box.appendChild(row);
+    });
+
+    content.appendChild(box);
+  });
+
+  modal.style.display = 'flex';
+};
