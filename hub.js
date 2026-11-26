@@ -15,7 +15,7 @@ class HubScene extends Phaser.Scene {
   create() {
     const w = this.scale.width, h = this.scale.height;
     this.add.grid(w / 2, h / 2, w, h, 40, 40, 0x12141d, 1, 0x1e2230, 1);
-    this.topText = this.add.text(14, 42, '', { fontFamily: '"Cubic 11", monospace', fontSize: '13px', color: '#f5b041', stroke: '#000', strokeThickness: 3 });
+    this.topText = this.add.text(14, 42, '', { fontFamily: '"Cubic11", monospace', fontSize: '13px', color: '#f5b041', stroke: '#000', strokeThickness: 3 });
     this.updateTopBar();
 
     this.zones = [
@@ -47,7 +47,7 @@ class HubScene extends Phaser.Scene {
   createZone(x, y, w, h, color, label, type) {
     this.add.rectangle(x, y, w, h, color, 0.2).setStrokeStyle(3, color);
     this.add.rectangle(x, y, w - 6, h - 6, 0x000000, 0).setStrokeStyle(1, 0xffffff, 0.5);
-    this.add.text(x, y, label, { fontFamily: '"Cubic 11", monospace', fontSize: '12px', color: '#fff', align: 'center', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
+    this.add.text(x, y, label, { fontFamily: '"Cubic11", monospace', fontSize: '12px', color: '#fff', align: 'center', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
     return { type, bounds: new Phaser.Geom.Rectangle(x - w / 2, y - h / 2, w, h) };
   }
 
