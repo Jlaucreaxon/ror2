@@ -11,8 +11,10 @@ DungeonScene.prototype.useMemberSkill = function(m, skId) {
   // [前] 前置技能（不消耗行動權）
   if (sk.type === 'Fast') {
     m.cooldowns[skId] = sk.maxCd;
-    if (skId === 'haste') { m.move += 4; this.log('<span class="tag-fast">[前] ' + m.name + ' 加速！Move +4</span>'); }
-    else if (skId === 'war_cry') {
+    if (skId === 'haste') {
+      m.move += 4;
+      this.log('<span class="tag-fast">[前] ' + m.name + ' 加速！Move +4</span>');
+    } else if (skId === 'war_cry') {
       getAliveParty().forEach(a => { a.atk += 1; a.matk += 1; a.move += 1; });
       this.log('<span class="tag-fast">[前] ' + m.name + ' 吶喊！全隊全能力 +1</span>');
     } else if (skId === 'sand_scatter') {
@@ -21,9 +23,12 @@ DungeonScene.prototype.useMemberSkill = function(m, skId) {
       RunState.enemy.atk = Math.max(1, Math.floor(RunState.enemy.atk * 0.7));
       this.log('<span class="tag-fast">[前] 撒出 ' + cost + ' 金沙致盲敵人！敵攻大幅下降</span>');
     } else if (skId === 'rapid_fire') {
-      m.atk *= 2; this.log('<span class="tag-fast">[前] 火力壓制！本場攻擊力翻倍</span>');
+      m.atk *= 2;
+      this.log('<span class="tag-fast">[前] 火力壓制！本場攻擊力翻倍</span>');
     }
-    this.updateHUD(m.id); this.renderMemberActions(m); return;
+    this.updateHUD(m.id);
+    this.renderMemberActions(m);
+    return;
   }
 
   m.cooldowns[skId] = sk.maxCd + (sk.type === 'Spell' ? mod.extraCd : 0);
@@ -37,8 +42,12 @@ DungeonScene.prototype.useMemberSkill = function(m, skId) {
   } else if (skId === 'escape') {
     if (Math.random() < 0.5) {
       this.log('💨 逃跑成功！脫離了這場戰鬥！');
-      RunState.enemy.hp = 0; this.checkEnd(); return;
-    } else { this.log('❌ 逃跑失敗！被敵人攔住了！'); }
+      RunState.enemy.hp = 0;
+      this.checkEnd();
+      return;
+    } else {
+      this.log('❌ 逃跑失敗！被敵人攔住了！');
+    }
   } else if (skId === 'reckless') {
     m.armour = Math.max(0, m.armour - 2);
     const res = this.calcDmg(Math.floor(m.atk * 1.3 * mod.atkMult), 'Attack', RunState.enemy, true);
@@ -57,11 +66,17 @@ DungeonScene.prototype.useMemberSkill = function(m, skId) {
     GameData.sand += gain; saveGame();
     this.log('⏳ ' + m.name + ' 聚金沙造成 ' + res.final + ' 傷害，順手摸走 +' + gain + ' 金沙！');
   } else if (skId === 'med_heal') {
-    getAliveParty().forEach(a => { a.hp = Math.min(a.maxHp, a.hp + Math.floor(a.maxHp * 0.25)); });
+    const mult = RunState.gear.includes('gloves') ? 1.3 : 1.0;
+    getAliveParty().forEach(a => { a.hp = Math.min(a.maxHp, a.hp + Math.floor(a.maxHp * 0.25 * mult)); });
     this.log('💚 ' + m.name + ' 戰地急救，全隊回復 25% 生命！');
+  } else if (skId === 'magic_bolt') {
+    // 修正：魔力彈改吃 matk 與魔法傷害類型 (Skill)
+    const res = this.calcDmg(Math.floor(m.matk * 1.15 * mod.matkMult), 'Skill', RunState.enemy, true);
+    this.log('🔮 ' + m.name + ' 施放魔力彈：破甲 ' + res.armDmg + '，<span class="tag-dmg">' + res.final + ' 魔法傷害</span>');
   } else if (sk.type === 'Charge') {
     const mult = skId === 'snipe_shot' ? 3.5 : 2.6;
-    m.charging = { name: sk.name, turns: sk.turns, dmg: Math.floor(m.atk * mult * mod.atkMult) };
+    const dtype = skId === 'snipe_shot' ? 'True' : 'Attack'; // 修正：致命狙擊釋放時為無視護甲真傷
+    m.charging = { name: sk.name, turns: sk.turns, dmg: Math.floor(m.atk * mult * mod.atkMult), dtype: dtype };
     this.log('<span class="tag-charge">[束] ' + m.name + ' 開始蓄力 ' + sk.name + '！</span>');
   } else if (sk.type === 'Spell') {
     const mult = skId === 'chant_doom' ? 3.0 : 2.2;
@@ -102,7 +117,6 @@ Object.assign(DungeonScene.prototype, {
 
   startNewRound() {
     if (this.checkEnd()) return;
-    const mod = getCombatModifiers();
 
     for (let i = RunState.activePotions.length - 1; i >= 0; i--) {
       if (--RunState.activePotions[i].turns <= 0) {
@@ -111,9 +125,10 @@ Object.assign(DungeonScene.prototype, {
       }
     }
 
+    const mod = getCombatModifiers();
     const queue = [];
     getAliveParty().forEach(m => {
-      const spd = mod.undead ? 0 : (RunState.activePotions.some(p => p.id === 'p_thunder') ? m.move * 2 : m.move);
+      const spd = m.move * (mod.moveMult !== undefined ? mod.moveMult : 1);
       queue.push({ isPlayer: true, unit: m, speed: spd });
     });
     queue.push({ isPlayer: false, unit: RunState.enemy, speed: RunState.enemy.move });
@@ -154,19 +169,18 @@ Object.assign(DungeonScene.prototype, {
 
     if (m.charging) {
       if (--m.charging.turns <= 0) {
-        const r = this.calcDmg(m.charging.dmg, 'Attack', RunState.enemy, true);
+        const r = this.calcDmg(m.charging.dmg, m.charging.dtype || 'Attack', RunState.enemy, true);
         this.log('<span class="tag-charge">[束力釋放] ' + m.name + ' 的 ' + m.charging.name + '：<span class="tag-dmg">' + r.final + ' 傷害</span></span>');
         m.charging = null;
         if (this.checkEnd()) return;
       } else {
         this.log('<span class="tag-charge">[束力中] ' + m.name + ' 蓄力中無法行動！</span>');
-        this.updateHUD();
+        this.updateHUD(m.id);
         this.time.delayedCall(500, () => this.processNextTurn());
         return;
       }
     }
 
-    this.updateHUD();
     this.renderMemberActions(m);
   },
 
@@ -215,8 +229,6 @@ Object.assign(DungeonScene.prototype, {
     return { armDmg: armDmg, final: final };
   },
 
-
-
   checkEnd() {
     this.updateHUD();
     if (RunState.enemy && RunState.enemy.hp <= 0) {
@@ -227,65 +239,60 @@ Object.assign(DungeonScene.prototype, {
       GameData.sand += s;
       saveGame();
 
-      this.log('🎉 擊敗敵人！+' + c + '金幣 ' + (s ? '+' + s + '金沙 ' : '') + '+' + expGain + 'EXP');
-      const lvLogs = grantPartyExp(expGain);
-      lvLogs.forEach(msg => this.log('<span style="color:#f1c40f;font-weight:bold;">' + msg + '</span>'));
-      this.updateHUD();
-
-      const panel = document.getElementById('action-panel');
-      panel.innerHTML = '';
-      const grid = document.createElement('div');
-      grid.className = 'btn-grid';
-      this.makeBtn(grid, '繼續前進 (' + (RunState.direction > 0 ? '向上' : '向下') + ')', '', true, () => {
-        RunState.floor += RunState.direction; this.nextRoom();
-      });
-      panel.appendChild(grid);
-      return true;
-    }
-
-    if (getAliveParty().length === 0) {
-      const kept = Math.floor(GameData.sand * 0.20), lost = GameData.sand - kept;
-      GameData.bankSand += kept; GameData.sand = 0; saveGame();
-      alert('💀 全隊覆沒！（無法回到地面）\n\n【地城稅收結算】\n沒收 80% 金沙 (-' + lost + ')\n保留 20% 存入銀行 (+' + kept + ')');
-      this.scene.start('HubScene');
-      return true;
-    }
-    return false;
-  },
-
+this.log('🎉 擊敗敵人！+' + c + '金幣 ' + (s ? '+' + s + '金沙 ' : '') + '+' + expGain + 'EXP');
+const lvLogs = grantPartyExp(expGain);
+lvLogs.forEach(msg => this.log('' + msg + ''));
+this.updateHUD();
+const panel = document.getElementById('action-panel');
+panel.innerHTML = '';
+const grid = document.createElement('div');
+grid.className = 'btn-grid';
+this.makeBtn(grid, '繼續前進 (' + (RunState.direction > 0 ? '向上' : '向下') + ')', '', true, () => {
+RunState.floor += RunState.direction; this.nextRoom();
+});
+panel.appendChild(grid);
+return true;
+}
+if (getAliveParty().length === 0) {
+const kept = Math.floor(GameData.sand * 0.20), lost = GameData.sand - kept;
+GameData.bankSand += kept; GameData.sand = 0; saveGame();
+alert('💀 全隊覆沒！（無法回到地面）\n\n【地城稅收結算】\n沒收 80% 金沙 (-' + lost + ')\n保留 20% 存入銀行 (+' + kept + ')');
+this.scene.start('HubScene');
+return true;
+}
+return false;
+},
 renderMemberActions(m) {
-    this.updateHUD(m.id); // <--- 加上這行，輪到該角色時卡片就會立刻閃爍！
-    const panel = document.getElementById('action-panel');
-    panel.innerHTML = '';
-    const title = document.createElement('div');
-    title.style.cssText = 'font-size:12px;color:#f5b041;font-weight:bold;margin-bottom:4px;';
-    title.textContent = '▶ 輪到【' + m.name + '】行動 (詠唱:' + (m.spells.map(s => s.name + '(' + s.turns + ')').join(' ') || '無') + ')';
-    panel.appendChild(title);
-
-    if (RunState.potions.length > 0) {
-      const pGrid = document.createElement('div');
-      pGrid.className = 'btn-grid';
-      pGrid.style.marginBottom = '6px';
-      RunState.potions.forEach((pid, idx) => {
-        const p = ItemDB.potions.find(x => x.id === pid);
-        if (!p) return;
-        const btn = this.makeBtn(pGrid, '🧪' + p.name, '', false, () => {
-          useBattlePotion(idx);
-          this.renderMemberActions(m);
-        });
-        btn.style.cssText = 'background:#1e3a2f;border-color:#2ecc71;';
-      });
-      panel.appendChild(pGrid);
-    }
-
-    const sGrid = document.createElement('div');
-    sGrid.className = 'btn-grid';
-    m.skills.forEach(skId => {
-      const sk = SkillDB[skId];
-      const cd = m.cooldowns[skId] || 0;
-      const btn = this.makeBtn(sGrid, sk.name + (cd > 0 ? '(CD:' + cd + ')' : ''), sk.desc, false, () => this.useMemberSkill(m, skId));
-      btn.disabled = cd > 0;
-    });
-    panel.appendChild(sGrid);
-  }
+this.updateHUD(m.id);
+const panel = document.getElementById('action-panel');
+panel.innerHTML = '';
+const title = document.createElement('div');
+title.style.cssText = 'font-size:12px;color:#f5b041;font-weight:bold;margin-bottom:4px;';
+title.textContent = '▶ 輪到【' + m.name + '】行動 (詠唱:' + (m.spells.map(s => s.name + '(' + s.turns + ')').join(' ') || '無') + ')';
+panel.appendChild(title);
+if (RunState.potions.length > 0) {
+const pGrid = document.createElement('div');
+pGrid.className = 'btn-grid';
+pGrid.style.marginBottom = '6px';
+RunState.potions.forEach((pid, idx) => {
+const p = ItemDB.potions.find(x => x.id === pid);
+if (!p) return;
+const btn = this.makeBtn(pGrid, '🧪' + p.name, '', false, () => {
+useBattlePotion(idx);
+this.renderMemberActions(m);
+});
+btn.style.cssText = 'background:#1e3a2f;border-color:#2ecc71;';
+});
+panel.appendChild(pGrid);
+}
+const sGrid = document.createElement('div');
+sGrid.className = 'btn-grid';
+m.skills.forEach(skId => {
+const sk = SkillDB[skId];
+const cd = m.cooldowns[skId] || 0;
+const btn = this.makeBtn(sGrid, sk.name + (cd > 0 ? '(CD:' + cd + ')' : ''), sk.desc, false, () => this.useMemberSkill(m, skId));
+btn.disabled = cd > 0;
+});
+panel.appendChild(sGrid);
+}
 });
