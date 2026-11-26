@@ -156,3 +156,37 @@ window.hubAction = function(act, val) {
   scene.updateTopBar();
   scene.showHubUI(scene.currentZone);
 };
+window.resetToHub = function() {
+  const isInDungeon = typeof game !== 'undefined' && game.scene.isActive('DungeonScene');
+
+  if (!isInDungeon) {
+    if (confirm('🔄 確定要重置角色位置到集會所中央嗎？')) {
+      const hub = game.scene.getScene('HubScene');
+      if (hub && hub.player) {
+        hub.player.setPosition(hub.scale.width * 0.5, hub.scale.height * 0.34);
+        hub.targetPos = null;
+        hub.showHubUI(null);
+      }
+    }
+    return;
+  }
+
+  const kept = Math.floor(GameData.sand * 0.20);
+  const lost = GameData.sand - kept;
+  const msg = '⚠️ 確定要強制撤離並返回集會所嗎？\n\n' +
+              '【地城結算規則】\n' +
+              '• 沒收 80% 攜帶金沙：-' + lost + '\n' +
+              '• 保留 20% 存入銀行：+' + kept + '\n' +
+              '• 獲得的金幣、寶石與隊伍進度將重置回村';
+
+  if (confirm(msg)) {
+    GameData.bankSand += kept;
+    GameData.sand = 0;
+    saveGame();
+
+    Object.assign(RunState, { direction: 0, floor: 0, party: [], enemy: null, bagItems: [] });
+    game.scene.stop('DungeonScene');
+    game.scene.start('HubScene');
+  }
+};
+
