@@ -10,23 +10,21 @@
 
 <style>
   /* 1. 直接載入開源俐方 11 號 (Cubic 11) woff2 字體檔 */
- @font-face {
+@font-face {
   font-family: 'Cubic11';
-  src: url('./Cubic_11.ttf') format('truetype');
+  src: url('./Cubic11.ttf?v=2') format('truetype');
   font-weight: normal;
   font-style: normal;
-  font-display: swap;
 }
 
+* {
+  box-sizing: border-box;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: 'Cubic11', monospace !important;
+  letter-spacing: 0.8px;
+}
 
-
-  * {
-    box-sizing: border-box;
-    user-select: none;
-    -webkit-user-select: none;
-    font-family: 'Cubic11', 'Courier New', monospace !important;
-    letter-spacing: 0.8px;
-  }
   body { margin: 0; background: #090a0f; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
   #game-box { width: 100%; max-width: 450px; height: 100%; max-height: 850px; position: relative; border: 4px solid #2b2d42; }
   #ui-overlay { position: absolute; bottom: 0; left: 0; width: 100%; pointer-events: none; padding: 12px; padding-bottom: env(safe-area-inset-bottom, 16px); display: flex; flex-direction: column; gap: 10px; }
