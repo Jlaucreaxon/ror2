@@ -1,9 +1,9 @@
 const ItemDB = {
   medGear: [
-    { id: 'scalpel', name: '解剖刀', cost: 45, desc: '醫療裝備：暴擊率 +20%，暴擊傷害變為 2 倍' },
-    { id: 'serum', name: '濃縮血清', cost: 50, desc: '醫療裝備：每場戰鬥開始時自動回復 15% 最大生命' },
-    { id: 'gloves', name: '無菌手術手套', cost: 40, desc: '醫療裝備：所有治療效果 +30%，且命中率 +10%' },
-    { id: 'sanitizer', name: '高濃度消毒液', cost: 40, desc: '醫療裝備：免疫敵方減益，且承受傷害減少 15%' }
+    { id: 'scalpel', name: '解剖刀', bagName: '解剖刀', cost: 45, desc: '醫療裝備：暴擊率 +20%，暴擊傷害變為 2 倍（可作轉職素材）' },
+    { id: 'serum', name: '濃縮血清', bagName: '血清', cost: 50, desc: '醫療裝備：每場戰鬥開始時自動回復 15% 最大生命（可作轉職素材）' },
+    { id: 'gloves', name: '無菌手術手套', bagName: '無菌手術手套', cost: 40, desc: '醫療裝備：所有治療效果 +30%，且命中率 +10%' },
+    { id: 'sanitizer', name: '高濃度消毒液', bagName: '高濃度消毒液', cost: 40, desc: '醫療裝備：免疫敵方減益，且承受傷害減少 15%' }
   ],
   potions: [
     { id: 'p_heal25', name: '3.1 回復藥水', cost: 20, turns: 0, desc: '立即回復全隊 25% 最大生命值' },
@@ -56,6 +56,10 @@ function buyClinicItem(itemJson) {
     const healed = healAllParty(0.5);
     scene.log('💉 飲用濃縮回復藥劑，全隊共回復 ' + healed + ' HP！');
   } else if (item.type === 'gear') {
+    // 同步加入轉職素材背包
+    if (item.bagName && RunState.bagItems) {
+      RunState.bagItems.push(item.bagName);
+    }
     if (!RunState.gear.includes(item.id)) {
       RunState.gear.push(item.id);
       if (item.id === 'scalpel') RunState.crit += 20;
@@ -63,7 +67,7 @@ function buyClinicItem(itemJson) {
       scene.log('🩺 裝備【' + item.name + '】：' + item.desc);
     } else {
       getAliveParty().forEach(m => { m.maxHp += 10; m.hp += 10; });
-      scene.log('已擁有【' + item.name + '】，轉化為全隊最大生命 +10！');
+      scene.log('已擁有【' + item.name + '】，轉化為全隊最大生命 +10（並獲得轉職素材）！');
     }
   } else if (item.type === 'potion') {
     RunState.potions.push(item.id);
@@ -102,7 +106,7 @@ function getCombatModifiers() {
     atkMult: isBerserk ? 2.0 : 1.0,
     matkMult: isMana ? 2.0 : 1.0,
     dmgTakenMult: (isBerserk ? 2.0 : 1.0) * (RunState.gear.includes('sanitizer') ? 0.85 : 1.0),
-    move: isUndead ? 0 : (isThunder ? RunState.move * 2 : RunState.move),
+    moveMult: isUndead ? 0 : (isThunder ? 2.0 : 1.0), // 改為倍率，避免讀取 undefined 的 RunState.move
     acc: isAim ? 100 : Math.max(10, RunState.acc - (isThunder ? 10 : 0)),
     crit: isAim ? 0 : RunState.crit,
     critMult: RunState.gear.includes('scalpel') ? 2.0 : 1.5,
