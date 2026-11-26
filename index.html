@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>無歸之淵 - Phaser 3</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<style>
+  /* 1. 直接載入開源俐方 11 號 (Cubic 11) woff2 字體檔 */
+  @import url(ror2/Cubic11.woff2);
+
+
+  * {
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+    font-family: 'Cubic11', 'Courier New', monospace !important;
+    letter-spacing: 0.8px;
+  }
+  body { margin: 0; background: #090a0f; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+  #game-box { width: 100%; max-width: 450px; height: 100%; max-height: 850px; position: relative; border: 4px solid #2b2d42; }
+  #ui-overlay { position: absolute; bottom: 0; left: 0; width: 100%; pointer-events: none; padding: 12px; padding-bottom: env(safe-area-inset-bottom, 16px); display: flex; flex-direction: column; gap: 10px; }
+
+  /* 2. 64-bit 復古邊框 + 每個角額外加多兩個像素階梯角 (::before) */
+  .panel-card, .log-mini, .member-card {
+    position: relative;
+    background: #161822;
+    border: 2px solid #eceff4;
+    box-shadow: 0 0 0 2px #090a0f, 4px 4px 0 #000;
+    border-radius: 0;
+  }
+  .panel-card::before, .log-mini::before, .member-card::before {
+    content: '';
+    position: absolute;
+    top: -4px; left: -4px; right: -4px; bottom: -4px;
+    pointer-events: none;
+    border: 2px solid transparent;
+    /* 四個角各自向外延伸兩個像素階梯角 */
+    background:
+      linear-gradient(#f5b041, #f5b041) 0 0 / 8px 2px no-repeat,
+      linear-gradient(#f5b041, #f5b041) 0 0 / 2px 8px no-repeat,
+      linear-gradient(#eceff4, #eceff4) 2px 2px / 4px 4px no-repeat,
+
+      linear-gradient(#f5b041, #f5b041) 100% 0 / 8px 2px no-repeat,
+      linear-gradient(#f5b041, #f5b041) 100% 0 / 2px 8px no-repeat,
+      linear-gradient(#eceff4, #eceff4) calc(100% - 2px) 2px / 4px 4px no-repeat,
+
+      linear-gradient(#f5b041, #f5b041) 0 100% / 8px 2px no-repeat,
+      linear-gradient(#f5b041, #f5b041) 0 100% / 2px 8px no-repeat,
+      linear-gradient(#eceff4, #eceff4) 2px calc(100% - 2px) / 4px 4px no-repeat,
+
+      linear-gradient(#f5b041, #f5b041) 100% 100% / 8px 2px no-repeat,
+      linear-gradient(#f5b041, #f5b041) 100% 100% / 2px 8px no-repeat,
+      linear-gradient(#eceff4, #eceff4) calc(100% - 2px) calc(100% - 2px) / 4px 4px no-repeat;
+  }
+
+  /* 3. 輪到該角色時的強烈金色/白色閃爍邊框 */
+  @keyframes turnBlink {
+    0%, 100% {
+      border-color: #ffdd59;
+      background: #332914;
+      box-shadow: 0 0 0 2px #000, 0 0 14px #f5b041;
+    }
+    50% {
+      border-color: #ffffff;
+      background: #1c1810;
+      box-shadow: 0 0 0 2px #000, 0 0 2px #fff;
+    }
+  }
+
+  .party-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; pointer-events: auto; }
+  .member-card { padding: 6px 8px; display: flex; align-items: center; gap: 8px; }
+  .member-card.active-turn { animation: turnBlink 0.8s infinite steps(2); }
+  .member-card.dead { opacity: 0.45; filter: grayscale(1); }
+
+  .avatar-box { width: 34px; height: 34px; display: flex; justify-content: center; align-items: center; font-size: 18px; flex-shrink: 0; border: 2px solid #fff; box-shadow: 2px 2px 0 #000; }
+  .m-info { flex: 1; min-width: 0; }
+  .m-name { font-size: 11px; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 3px; text-shadow: 1px 1px 0 #000; }
+  .bar-bg { width: 100%; height: 6px; background: #0d0e12; border: 1px solid #4c566a; margin-bottom: 2px; }
+  .hp-fill { height: 100%; background: #e74c3c; }
+  .arm-fill { height: 100%; background: #3498db; }
+  .m-stats { font-size: 10px; color: #d8dee9; }
+
+  .panel-card { padding: 10px; color: #eceff4; pointer-events: auto; font-size: 13px; line-height: 1.4; }
+  .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 8px; }
+
+  button {
+    background: #2e3440;
+    color: #eceff4;
+    border: 2px solid #88c0d0;
+    box-shadow: 0 0 0 2px #090a0f, inset -2px -2px 0 #1c2028, inset 2px 2px 0 #4c566a;
+    padding: 9px 6px;
+    font-size: 12px;
+    cursor: pointer;
+    text-shadow: 1px 1px 0 #000;
+  }
+  button:active:not(:disabled) { background: #f5b041; color: #090a0f; border-color: #fff; text-shadow: none; }
+  button:disabled { opacity: 0.35; border-color: #4c566a; }
+  .btn-full { grid-column: span 2; }
+
+  .log-mini { height: 80px; overflow-y: auto; padding: 6px 8px; font-size: 11px; color: #d8dee9; line-height: 1.45; pointer-events: auto; }
+  .tag-scout { color: #88c0d0; } .tag-fast { color: #a3be8c; } .tag-charge { color: #d08770; } .tag-spell { color: #b48ead; } .tag-dmg { color: #bf616a; }
+</style>
+
+
+</head>
+<body>
+<div id="game-box">
+  <div id="ui-overlay">
+    <div id="party-hud" class="party-grid" style="display:none;"></div>
+    <div id="log-box" class="log-mini" style="display:none;"></div>
+    <div id="action-panel" class="panel-card">正在載入遊戲引擎...</div>
+  </div>
+</div>
+
+<script>
+// 錯誤捕捉器：如果有任何 JS 語法錯誤或檔案遺失，直接顯示在畫面上
+window.onerror = function(msg, url, line) {
+  const file = url ? url.split('/').pop() : '未知檔案';
+  document.getElementById('action-panel').innerHTML = '<b style="color:#ff6b6b;">❌ 載入錯誤：</b><br>' + file + ' 第 ' + line + ' 行<br><span style="font-size:11px;color:#ccc;">' + msg + '</span>';
+};
+
+// 動態載入 Phaser 引擎，確保不受複製貼上過濾影響
+const phaserScript = document.createElement('script');
+phaserScript.src = 'phaser.min.js';
+phaserScript.onload = function() {
+  const files = ['hub.js', 'items.js', 'data.js', 'party.js', 'dungeon_core.js', 'dungeon_combat.js'];
+  let loaded = 0;
+  function loadNext() {
+    if (loaded >= files.length) {
+      window.game = new Phaser.Game({
+        type: Phaser.AUTO,
+        parent: 'game-box',
+        width: 450,
+        height: 850,
+        scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+        scene: [HubScene, DungeonScene]
+      });
+      return;
+    }
+    const s = document.createElement('script');
+    s.src = files[loaded] + '?v=' + Date.now(); // 強制破除手機快取
+    s.onload = () => { loaded++; loadNext(); };
+    s.onerror = () => {
+      document.getElementById('action-panel').innerHTML = '<b style="color:#ff6b6b;">❌ 找不到檔案：</b> ' + files[loaded] + '<br>請確認 GitHub 倉庫內是否有此檔案且檔名全小寫。';
+    };
+    document.body.appendChild(s);
+  }
+  loadNext();
+};
+phaserScript.onerror = function() {
+  document.getElementById('action-panel').innerHTML = '<b style="color:#ff6b6b;">❌ 無法連線至 Phaser CDN</b><br>請檢查網路連線或關閉廣告阻擋器。';
+};
+document.body.appendChild(phaserScript);
+</script>
+</body>
+</html>
