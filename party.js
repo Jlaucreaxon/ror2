@@ -1,6 +1,6 @@
 const RandomNames = ['凱恩', '莉莉絲', '雷歐', '賽琳娜', '莫德雷德', '艾琳', '加雷斯', '薇薇安'];
 
-// 生成一名指定職業或隨機F/E/D級隊員
+// 生成一名指定職業或隨機F級隊員
 function createMemberByJob(jobName, customName) {
   const data = JobDB[jobName] || JobDB['冒險者'];
   return {
@@ -25,7 +25,8 @@ function generateRandomMember(isMain) {
     const startJob = JobDB[GameData.job] ? GameData.job : '冒險者';
     return createMemberByJob(startJob, '隊長(' + startJob + ')');
   }
-  const pool = Object.keys(JobDB).filter(k => ['F', 'E', 'D'].includes(JobDB[k].rank));
+  // 酒吧招募限定 F 級隨機職業
+  const pool = Object.keys(JobDB).filter(k => JobDB[k].rank === 'F');
   const pick = pool[Math.floor(Math.random() * pool.length)];
   const rName = RandomNames[Math.floor(Math.random() * RandomNames.length)];
   return createMemberByJob(pick, rName + '(' + pick + ')');
@@ -39,7 +40,6 @@ function initParty() {
     RunState.party.push(generateRandomMember(false));
   }
 }
-
 
 function getAliveParty() {
   return RunState.party.filter(m => m.hp > 0);
@@ -55,28 +55,36 @@ function getAvailablePromotions(member) {
   });
 }
 
-// 執行轉職並消耗對應裝備
+// 執行轉職並消耗對應裝備（保留等級成長屬性）
 function promoteMember(member, recipe) {
   if (recipe.item) {
     const idx = RunState.bagItems.indexOf(recipe.item);
     if (idx > -1) RunState.bagItems.splice(idx, 1);
     member.weapon = recipe.item;
   }
+  const oldData = JobDB[member.job] || JobDB['冒險者'];
   const newData = JobDB[recipe.to];
+  
   member.job = recipe.to;
   member.rank = newData.rank;
   member.name = member.name.replace(/\(.*?\)/, '(' + recipe.to + ')');
-  member.maxHp = newData.hp; member.hp = newData.hp;
-  member.maxArmour = newData.arm; member.armour = newData.arm;
-  member.move = newData.move; member.atk = newData.atk; member.matk = newData.matk;
+  
+  // 加上新舊職業基礎值差額，保留升級獲得的額外成長
+  member.maxHp += (newData.hp - oldData.hp);
+  member.hp = member.maxHp;
+  member.maxArmour += (newData.arm - oldData.arm);
+  member.armour = member.maxArmour;
+  member.move += (newData.move - oldData.move);
+  member.atk += (newData.atk - oldData.atk);
+  member.matk += (newData.matk - oldData.matk);
   member.skills = newData.skills.slice();
 }
+
 // 戰鬥勝利發放經驗值與升級處理
 function grantPartyExp(expGain) {
   const logs = [];
   getAliveParty().forEach(m => {
     m.exp += expGain;
-    const reqExp = m.lv * 30;
     while (m.exp >= m.lv * 30) {
       m.exp -= m.lv * 30;
       m.lv += 1;
