@@ -15,7 +15,7 @@ class HubScene extends Phaser.Scene {
   create() {
     const w = this.scale.width, h = this.scale.height;
     this.add.grid(w / 2, h / 2, w, h, 40, 40, 0x12141d, 1, 0x1e2230, 1);
-    this.topText = this.add.text(14, 42, '', { fontFamily: '"Cubic11", monospace', fontSize: '13px', color: '#f5b041', stroke: '#000', strokeThickness: 3 });
+    this.topText = this.add.text(14, 42, '', { fontFamily: 'Cubic11, monospace', fontSize: '13px', color: '#f5b041', stroke: '#000', strokeThickness: 3 });
     this.updateTopBar();
 
     this.zones = [
@@ -24,6 +24,14 @@ class HubScene extends Phaser.Scene {
       this.createZone(w * 0.24, h * 0.45, 110, 74, 0x9b59b6, '集會所酒吧\n(招募上限4人)', 'bar'),
       this.createZone(w * 0.76, h * 0.45, 110, 74, 0xe74c3c, '無歸傳送門\n(上下探索)', 'gate')
     ];
+
+    // 強制等待字體就緒後重繪畫布文字，避免手機端初次載入慢半拍
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => {
+        if (this.topText && this.topText.active) this.topText.updateText();
+        this.children.list.forEach(c => { if (c.type === 'Text') c.updateText(); });
+      });
+    }
 
     const g = this.make.graphics({ x: 0, y: 0, add: false });
     g.fillStyle(0x3498db, 1).fillRect(4, 4, 28, 28).lineStyle(3, 0xffffff, 1).strokeRect(4, 4, 28, 28);
@@ -47,7 +55,7 @@ class HubScene extends Phaser.Scene {
   createZone(x, y, w, h, color, label, type) {
     this.add.rectangle(x, y, w, h, color, 0.2).setStrokeStyle(3, color);
     this.add.rectangle(x, y, w - 6, h - 6, 0x000000, 0).setStrokeStyle(1, 0xffffff, 0.5);
-    this.add.text(x, y, label, { fontFamily: '"Cubic11", monospace', fontSize: '12px', color: '#fff', align: 'center', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
+    this.add.text(x, y, label, { fontFamily: 'Cubic11, monospace', fontSize: '12px', color: '#fff', align: 'center', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5);
     return { type, bounds: new Phaser.Geom.Rectangle(x - w / 2, y - h / 2, w, h) };
   }
 
