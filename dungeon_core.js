@@ -38,10 +38,10 @@ class DungeonScene extends Phaser.Scene {
   create() {
     const w = this.scale.width, h = this.scale.height;
     this.add.rectangle(w / 2, h / 2, w, h, RunState.direction > 0 ? 0x162238 : 0x241114);
-    this.headerText = this.add.text(14, 38, '', {fontFamily: '"Cubic 11", monospace', stroke: '#000', strokeThickness: 3, fontSize: '12px', color: '#f5b041', fontStyle: 'bold', lineSpacing: 3 });
+    this.headerText = this.add.text(14, 38, '', {fontFamily: '"Cubic11", monospace', stroke: '#000', strokeThickness: 3, fontSize: '12px', color: '#f5b041', fontStyle: 'bold', lineSpacing: 3 });
 
     this.enemySprite = this.add.rectangle(w * 0.5, h * 0.24, 95, 95, 0xc0392b).setStrokeStyle(3, 0xff7675).setVisible(false);
-    this.enemyInfo = this.add.text(w * 0.5, h * 0.35, '', { fontFamily: '"Cubic 11", monospace', stroke: '#000', strokeThickness: 3,fontSize: '14px', color: '#fff', align: 'center', fontStyle: 'bold', lineSpacing: 4 }).setOrigin(0.5);
+    this.enemyInfo = this.add.text(w * 0.5, h * 0.35, '', { fontFamily: '"Cubic11", monospace', stroke: '#000', strokeThickness: 3,fontSize: '14px', color: '#fff', align: 'center', fontStyle: 'bold', lineSpacing: 4 }).setOrigin(0.5);
 
     const hud = document.getElementById('party-hud');
     if (hud) hud.style.display = 'grid';
